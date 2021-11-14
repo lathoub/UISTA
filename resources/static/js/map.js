@@ -1,3 +1,9 @@
+// array of serice endpoints
+serviceEndpoints = []
+
+var serviceEndpoint = prompt("Enter SensorThings API endpoint", "https://labs.waterdata.usgs.gov/sta/v1.1");
+serviceEndpoints.push( { "name": "test", "url": serviceEndpoint } );
+
 // Leaflet map initial view
 let map = L.map('map').setView([0, 0], 12);
 
@@ -36,15 +42,12 @@ serviceEndpoints.forEach(function (endpoint) {
                 };
             });
 
-            // Convert to geoJSON features (and add title (for tooltip) and icon)
+            // Convert to geoJSON features (and add title for the tooltip )
             var geoJsonLayerGroup = L.geoJSON(geoJsonFeatures, {
                 pointToLayer: function (feature, latlng) {
-
                     var marker = L.marker(latlng, {
                         title: feature.name,
-                        icon: (feature.properties.version == 6) ? goldIcon : (feature.properties.version == 7) ? greenIcon : (feature.properties.version == 8) ? yellowIcon : blueIcon
                     });
-
                     return marker
                 }
             }).addTo(markersClusterGroup);
@@ -57,7 +60,7 @@ serviceEndpoints.forEach(function (endpoint) {
 })
 
 // Create empty chart. Observation will be added
-// to the chart when the user click on the Market and Datastream
+// to the chart when the user click on the Marker and Datastream
 
 // Display time as local time
 Highcharts.setOptions({
@@ -67,15 +70,6 @@ Highcharts.setOptions({
 });
 
 let chart = new Highcharts.stockChart("chart", {
-
-    title: { text: "" },
-    legend: { enabled: true },
-    rangeSelector: {
-        verticalAlign: 'top',
-    },
-    yAxis: {
-        title: "",
-    },
     xAxis: { type: "datetime" },
     series: []
 });
@@ -96,8 +90,6 @@ function markerOnClick(event) {
             + '</label>'
 
         var observationsUrl = datastream["@iot.selfLink"]
-
-        observationsUrl = observationsUrl.replace("http://", "https://")
 
         console.log(observationsUrl)
 
@@ -173,7 +165,7 @@ function markerOnClick(event) {
 
             // get the observation from the past 3 days
             // (3 days of observation is under 1000 observations)
-            const startDateTime = moment(Date.now()).subtract(1, 'd')
+            // const startDateTime = moment(Date.now()).subtract(1, 'd')
 
             // request the more optimal dataArray for the results
             let observationsUrl = thing.resource + "/Datastreams('" + datastream['@iot.id'] + "')"
@@ -182,7 +174,7 @@ function markerOnClick(event) {
                 + "&$top=1000"
                 + "&$resultFormat=dataArray"
                 + "&$select=result,phenomenonTime"
-       //         + "&$filter=resultTime%20ge%20" + startDateTime.toISOString()
+       //         + "&$filter=phenomenonTime%20ge%20" + startDateTime.toISOString()
                 + "&$orderby=phenomenonTime asc"
 
             console.log(observationsUrl)

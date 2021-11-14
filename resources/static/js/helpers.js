@@ -1,13 +1,5 @@
 var dictSelected = {}
 
-// database of serice endpoints
-serviceEndpoints = [
-    {
-        name: "USGS",
-        url: "https://labs.waterdata.usgs.gov/sta/v1.1"
-    }
-]
-
 function getThingCard(thingName) {
     var contentPanel = document.getElementById("contentPanel")
     for (const thingCard of contentPanel.childNodes) {
