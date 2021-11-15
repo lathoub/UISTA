@@ -1,8 +1,8 @@
 // array of serice endpoints
 serviceEndpoints = []
 
-var serviceEndpoint = prompt("Enter SensorThings API endpoint", "https://labs.waterdata.usgs.gov/sta/v1.1");
-serviceEndpoints.push( { "name": "test", "url": serviceEndpoint } );
+var serviceEndpoint = prompt("Enter SensorThings API endpoint", "https://labs.waterdata.usgs.gov/sta/v1.1/");
+serviceEndpoints.push({ "name": "test", "url": serviceEndpoint });
 
 // Leaflet map initial view
 let map = L.map('map').setView([0, 0], 12);
@@ -20,20 +20,22 @@ markersClusterGroup.on("click", markerOnClick);
 // var dictEndpoints
 serviceEndpoints.forEach(function (endpoint) {
 
-    console.log(endpoint.url)
-
     var url = endpoint.url + "/Things?$expand=Locations,Datastreams($orderby=name asc)"
+    console.log(url)
 
     fetch(url)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok)
+                throw new Error('Error ${response.ok} from get', { cause: response.message })
+            return response.json()
+        })
         .then(body => {
-
             // Convert the Locations into GeoJSON Features
             var geoJsonFeatures = body.value.map(function (thing) {
                 return {
                     type: 'Feature',
                     id: thing['@iot.id'],
-                    resource: endpoint.url + "/Things('" + thing['@iot.id'] + "')",
+                    resource: endpoint.url + "/Things(" + thing['@iot.id'] + ")",
                     name: thing.name,
                     properties: thing.properties,
                     location: thing.Locations[0],   // cache location info
@@ -54,9 +56,11 @@ serviceEndpoints.forEach(function (endpoint) {
 
             // Zoom in the map so that it fits the Things
             if (Object.keys(geoJsonLayerGroup._layers).length)
-                map.fitBounds(geoJsonLayerGroup.getBounds());
+                map.fitBounds(geoJsonLayerGroup.getBounds())
         })
-
+        .catch((error) => {
+            alert(error)
+        })
 })
 
 // Create empty chart. Observation will be added
@@ -78,13 +82,13 @@ let chart = new Highcharts.stockChart("chart", {
 function markerOnClick(event) {
     let thing = event.layer.feature;
 
-    if (dictSelected[thing.name]) return;
-    dictSelected[thing.name] = { "thing": thing, "datastreams": [] }
+    if (dictSelected[thing.id]) return;
+    dictSelected[thing.id] = { "thing": thing, "datastreams": [] }
 
     var datastreamsHtml = ''
     thing.datastreams.forEach(function (datastream) {
         datastreamsHtml += '<label class="list-group-item">'
-            + '<input class="form-check-input me-1" type="checkbox" value="">' + datastream.name
+            + '<input class="form-check-input me-1" type="checkbox" value="" datastream="' + datastream["@iot.id"] + '">' + datastream.name
             + '<span class="p-0"></span>'
             + '<span class="badge bg-primary rounded-pill"></span>'
             + '</label>'
@@ -94,9 +98,13 @@ function markerOnClick(event) {
         console.log(observationsUrl)
 
         fetch(observationsUrl) // get last observation
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok)
+                    throw new Error('Error ${response.ok} from get', { cause: response.message });
+                return response.json()
+            })
             .then(body => {
-                var datastreamItem = getDatastreamItem(thing.name, datastream.name)
+                var datastreamItem = getDatastreamItem(thing.id, datastream['@iot.id'])
                 if (body && body.phenomenonTime) {
                     var phenomenonTimeInterval = body.phenomenonTime.split("/")
                     var toen = moment(phenomenonTimeInterval[phenomenonTimeInterval.length - 1])
@@ -105,17 +113,20 @@ function markerOnClick(event) {
                     datastreamItem.childNodes[3].textContent = toen.fromNow()
                     datastreamItem.childNodes[3].className = "badge bg-primary rounded-pill float-end"
                 } else {
-                    datastreamItem.className = "list-group-item disabled"
+                    datastreamItem.className = "list-group-item" // "list-group-item disabled"
                     datastreamItem.childNodes[2].textContent += " (" + body.unitOfMeasurement.symbol + ")"
                     datastreamItem.childNodes[3].textContent = "no data"
                     datastreamItem.childNodes[3].className = "badge bg-warning rounded-pill float-end"
                 }
-            });
+            })
+            .catch((error) => {
+                alert(error)
+            })
     });
 
     var myCard = $('<div class="card card-outline-info" id="bbb">'
         + '<h5 class="card-header">'
-        + '<span>' + thing.name + '</span>'
+        + '<span thingId="' + thing.id + '">' + thing.name + '</span>'
         + '<button type="button" class="btn-close btn-close-white float-end" aria-label="Close"></button>'
         + '</h5>'
         + '<div id="card-title" class="card-title">' + thing.location.name + ", " + thing.location.description
@@ -129,60 +140,65 @@ function markerOnClick(event) {
     $('.btn-close').on('click', function (e) {
         e.stopPropagation();
 
-        const thingName = this.parentNode.childNodes[0].textContent
-        const thing = getThing(thingName)
+        const thingId = this.parentNode.childNodes[0].attributes['thingId'].value
+        const thing = getThing(thingId)
         if (!thing) return // hmm, should already be selected 
 
         // remove from chart
-        for (const datastreamId of dictSelected[thing.name].datastreams)
-            chart.get(datastreamId).remove();
+        for (const datastreamId of dictSelected[thing.id].datastreams)
+            chart.get(datastreamId)?.remove()
 
         // remove thing from selected things
-        delete dictSelected[thing.name]
+        delete dictSelected[thing.id]
 
         var $target = $(this).parents('.card');
         $target.hide('fast', function () {
             $target.remove();
         });
-
     });
 
     $('.form-check-input').change(function (e) {
         // from UI
-        const datastreamName = this.parentNode.childNodes[1].data
-        const thingName = this.parentNode.parentNode.parentNode.childNodes[0].childNodes[0].textContent
+        const datastreamId = this.parentNode.childNodes[0].attributes['datastream'].value
+        const thingId = this.parentNode.parentNode.parentNode.childNodes[0].childNodes[0].attributes['thingId'].value
 
-        const thing = getThing(thingName)
+        const thing = getThing(thingId)
         if (!thing) return // hmm, should already be selected 
 
-        // get datastream from datastream name
-        const datastream = getDatastream(thing, datastreamName)
+        // get datastream from cached datastreams in Things
+        const datastream = getDatastream(thing, datastreamId)
         if (!datastream) return // hmm, should already be selected 
 
         if ($(this).prop('checked')) {
 
-            dictSelected[thing.name].datastreams.push(datastream["@iot.id"])
+            dictSelected[thing.id].datastreams.push(datastream["@iot.id"])
 
             // get the observation from the past 3 days
             // (3 days of observation is under 1000 observations)
             // const startDateTime = moment(Date.now()).subtract(1, 'd')
 
             // request the more optimal dataArray for the results
-            let observationsUrl = thing.resource + "/Datastreams('" + datastream['@iot.id'] + "')"
+            let observationsUrl = thing.resource + "/Datastreams(" + datastream['@iot.id'] + ")"
                 + "/Observations"
                 + "?$count=true"
                 + "&$top=1000"
                 + "&$resultFormat=dataArray"
                 + "&$select=result,phenomenonTime"
-       //         + "&$filter=phenomenonTime%20ge%20" + startDateTime.toISOString()
+                //         + "&$filter=phenomenonTime%20ge%20" + startDateTime.toISOString()
                 + "&$orderby=phenomenonTime asc"
 
             console.log(observationsUrl)
 
             fetch(observationsUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok)
+                        throw new Error("errorke", { cause: response.status })
+                    return response.json()
+                })
                 .then(observations => {
-                    // TODO: run query async 
+                    if (observations.value.length <= 0)
+                        return
+
                     const components = observations.value[0].components
                     const dataArray = observations.value[0].dataArray
                     const it = components.indexOf("phenomenonTime")
@@ -198,11 +214,14 @@ function markerOnClick(event) {
                         id: datastream["@iot.id"],
                         name: thing.name + '(' + thing.location.name + ')' + ", " + datastream.name,
                         data: data
-                    });
+                    })
+                })
+                .catch((error) => {
+                    alert(error)
                 })
         } else {
             // remove datastream id
-            dictSelected[thing.name].datastreams = dictSelected[thing.name].datastreams.filter(function (value, index, arr) {
+            dictSelected[thing.id].datastreams = dictSelected[thing.id].datastreams.filter(function (value, index, arr) {
                 return value != datastream["@iot.id"];
             });
             chart.get(datastream["@iot.id"]).remove();
