@@ -32,10 +32,13 @@ serviceEndpoints.forEach(function (endpoint) {
         .then(body => {
             // Convert the Locations into GeoJSON Features
             var geoJsonFeatures = body.value.map(function (thing) {
+                var id = thing['@iot.id']
+                if (isNaN(id))
+                    id = "'" + id + "'"
                 return {
                     type: 'Feature',
                     id: thing['@iot.id'],
-                    resource: endpoint.url + "/Things(" + thing['@iot.id'] + ")",
+                    resource: endpoint.url + "/Things(" + id + ")",
                     name: thing.name,
                     properties: thing.properties,
                     location: thing.Locations[0],   // cache location info
@@ -173,16 +176,15 @@ function markerOnClick(event) {
 
             dictSelected[thing.id].datastreams.push(datastream["@iot.id"])
 
-            // get the observation from the past 3 days
-            // (3 days of observation is under 1000 observations)
-            // const startDateTime = moment(Date.now()).subtract(1, 'd')
+            var id = datastream['@iot.id']
+            if (isNaN(id))
+                id = "'" + id + "'"
 
-            // request the more optimal dataArray for the results
-            let observationsUrl = thing.resource + "/Datastreams(" + datastream['@iot.id'] + ")"
+            let observationsUrl = thing.resource + "/Datastreams(" + id + ")"
                 + "/Observations"
                 + "?$count=true"
                 + "&$top=1000"
-                + "&$resultFormat=dataArray"
+                + "&$resultFormat=dataArray" // request the more optimal dataArray for the results
                 + "&$select=result,phenomenonTime"
                 //         + "&$filter=phenomenonTime%20ge%20" + startDateTime.toISOString()
                 + "&$orderby=phenomenonTime asc"
