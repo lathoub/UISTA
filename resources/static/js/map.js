@@ -1,7 +1,7 @@
 // array of serice endpoints
 serviceEndpoints = []
 
-var serviceEndpoint = prompt("Enter SensorThings API endpoint", "https://labs.waterdata.usgs.gov/sta/v1.1/");
+var serviceEndpoint = prompt("Enter SensorThings API endpoint", "https://sensors.bgs.ac.uk/FROST-Server/v1.1");
 serviceEndpoints.push({ "name": "test", "url": serviceEndpoint });
 
 // Leaflet map initial view
