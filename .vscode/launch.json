@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "chrome",
+            "type": "pwa-chrome",
             "request": "launch",
-            "name": "Open login.html",
-            "file": "c:\\Users\\bart\\Documents\\github\\UISTA\\index.html"
+            "name": "Launch Chrome against localhost",
+            "file": "/Users/bart/Documents/GitHub/UISTA/index.html",
         }
     ]
 }
