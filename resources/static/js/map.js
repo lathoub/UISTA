@@ -39,7 +39,7 @@ serviceEndpoints.forEach(function (endpoint) {
                     type: 'Feature',
                     id: thing['@iot.id'],
                     resource: endpoint.url + "/Things(" + id + ")",
-                    name: thing.name,
+                    name: thing['@iot.id'] + " - " + thing.name,
                     properties: thing.properties,
                     location: thing.Locations[0],   // cache location info
                     datastreams: thing.Datastreams, // cache Datastreams
